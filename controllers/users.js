@@ -1,38 +1,69 @@
 const { response, request } = require('express');
+const bcryptjs = require('bcryptjs');
 
-const usersGet = (req = request, res = response) => {
+const User = require('../models/user');
+
+const usersGet = async(req = request, res = response) => {
     
-    const query = req.query;
+    const { limite = 5, desde = 0 } = req.query;
+    const query = { statu: true };
+
+    const [ total, users ] = await Promise.all([
+        User.countDocuments(query),
+        User.find(query).skip(Number(desde)).limit(Number(limite))
+    ]);
 
     res.json({
-        msg:'get API - Controllers', 
-        query
+        total,
+        users
     });
 }
 
-const usersPut = (req, res = response) => {
+const usersPut = async(req, res = response) => {
     
     const {id} = req.params;
+    const {_id, password, google, email, ...resto} = req.body;
+
+    //TODO validar contra base de datos
+    if(password){
+        //Encriptar la contraseña
+        const salt = bcryptjs.genSaltSync();
+        resto.password = bcryptjs.hashSync( password, salt);
+    }
+
+    const user = await User.findByIdAndUpdate(id, resto);
+
+    res.json(user);
+}
+
+const usersPost = async(req, res = response) => {
+
+    const { username, email, password, rol } = req.body;
+    const user = new User( { username, email, password, rol } );
+
+    //Encriptar la contraseña
+    const salt = bcryptjs.genSaltSync();
+    user.password = bcryptjs.hashSync( password, salt);
+
+    //Guardar en la base de datos
+    await user.save();
 
     res.json({
-        msg:'put API - Controllers',
-        id
+        user
     });
 }
 
-const usersPost = (req, res = response) => {
-    
-    const {id, nombre, apellido, edad} = req.body;
+const usersDelete = async(req, res = response) => {
+    const { id } = req.params;
+
+    //Borrar datos fisicos
+    //const user = await User.findByIdAndDelete( id );
+
+    const user = await User.findByIdAndUpdate( id, { statu: false} );
+
 
     res.json({
-        msg:'post API - Controllers',
-        id, nombre, apellido, edad
-    });
-}
-
-const usersDelete = (req, res = response) => {
-    res.json({
-        msg:'delete API - Controllers'
+        user
     });
 }
 
